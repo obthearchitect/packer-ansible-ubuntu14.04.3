@@ -1,0 +1,9 @@
+### Packer ###
+# Cache objects
+packer_cache/
+vagrant_boxes/
+build/
+
+# For built boxes
+*.box
+*.DS_Store

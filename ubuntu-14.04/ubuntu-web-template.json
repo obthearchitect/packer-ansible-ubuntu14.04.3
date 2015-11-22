@@ -1,0 +1,176 @@
+{  
+   "variables": {
+      "aws_access_key":"{{env `AWS_ACCESS_KEY_ID`}}",
+      "aws_secret_key":"{{env `AWS_SECRET_ACCESS_KEY`}}",
+      "digital_ocean_token":"{{env `DIGITALOCEAN_API_TOKEN`}}",
+      "source_path_ovf":"/Users/Ovidio/Documents/VMimages/Ubuntu.ova",
+      "iso_url_source":"http://releases.ubuntu.com/14.04/ubuntu-14.04.3-server-amd64.iso", 
+      "iso_checksum_source":"9e5fecc94b3925bededed0fdca1bd417",
+      "iso_checksum_type_source":"md5", 
+      "virtualbox_ssh_username":"vagrant",
+      "virtualbox_ssh_password":"vagrant",
+      "aws_ssh_username":"ubuntu"
+   }
+   ,
+   "provisioners":[  
+      {  
+         "type":"shell",
+         "execute_command":"echo 'vagrant'|sudo -S sh '{{.Path}}'",
+         "override":{  
+            "virtualbox-ovf":{  
+               "scripts":[  
+                  "scripts/base.sh",
+                  "scripts/vagrant.sh",
+                  "scripts/virtualbox.sh",
+                  "scripts/ansible.sh"
+               ]
+            },
+            "virtualbox-iso":{  
+               "scripts":[  
+                  "scripts/base.sh",
+                  "scripts/vagrant.sh",
+                  "scripts/virtualbox.sh",
+                  "scripts/ansible.sh"
+               ]
+            },
+            "amazon-ebs":{  
+               "scripts":[  
+                  "scripts/base.sh",
+                  "scripts/ansible.sh"
+               ]
+            },
+            "digitalocean":{  
+               "scripts":[  
+                  "scripts/base.sh",
+                  "scripts/ansible.sh"
+               ]
+            }
+         }
+      },
+      {  
+         "type":"ansible-local",
+         "playbook_file":"ansible/main.yml",
+          "role_paths": [
+            "/etc/ansible/roles/ovidioborrero.apache2",
+            "/etc/ansible/roles/ovidioborrero.newrelic"
+      ]
+      },
+      {  
+         "type":"shell",
+         "execute_command":"echo 'vagrant'|sudo -S sh '{{.Path}}'",
+         "scripts":[  
+            "scripts/cleanup.sh",
+            "scripts/zerodisk.sh"
+         ]
+      }
+   ],
+   "builders":[  
+   {
+      "type": "virtualbox-iso",
+      "boot_command": [
+        "<esc><wait>",
+        "<esc><wait>",
+        "<enter><wait>",
+        "/install/vmlinuz<wait>",
+        " auto<wait>",
+        " console-setup/ask_detect=false<wait>",
+        " console-setup/layoutcode=us<wait>",
+        " console-setup/modelcode=pc105<wait>",
+        " debian-installer=en_US<wait>",
+        " fb=false<wait>",
+        " initrd=/install/initrd.gz<wait>",
+        " kbd-chooser/method=us<wait>",
+        " keyboard-configuration/layout=USA<wait>",
+        " keyboard-configuration/variant=USA<wait>",
+        " locale=en_US<wait>",
+        " netcfg/get_hostname=ubuntu-1204<wait>",
+        " netcfg/get_domain=vagrantup.com<wait>",
+        " noapic<wait>",
+        " preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg<wait>",
+        " -- <wait>",
+        "<enter><wait>"
+      ],
+      "boot_wait": "5s",
+      "disk_size": 10000,
+      "guest_os_type": "Ubuntu_64",
+      "http_directory": "http",
+      "iso_url": "{{user `iso_url_source`}}",
+      "iso_checksum": "{{user `iso_checksum_source`}}", 
+      "iso_checksum_type": "{{user `iso_checksum_type_source`}}",
+      "ssh_username":"{{user `virtualbox_ssh_username`}}",
+      "ssh_password":"{{user `virtualbox_ssh_password`}}",
+      "ssh_port": 22,
+      "ssh_wait_timeout": "10000s",
+      "headless":false,
+      "output_directory":"./isobuild",
+      "format":"ovf",
+      "vm_name":"lamp-template",
+      "shutdown_command": "echo 'shutdown -P now' > /tmp/shutdown.sh; echo 'vagrant'|sudo -S sh '/tmp/shutdown.sh'",
+      "vboxmanage": [
+        [ "modifyvm", "{{.Name}}", "--memory", "512" ],
+        [ "modifyvm", "{{.Name}}", "--cpus", "1" ]
+      ]
+    },    
+    {  
+         "type":"virtualbox-ovf",
+         "format":"ovf",
+         "source_path":"{{user `source_path_ovf`}}",
+         "ssh_username":"{{user `virtualbox_ssh_username`}}",
+         "ssh_password":"{{user `virtualbox_ssh_password`}}",
+         "ssh_wait_timeout":"300s",
+         "headless":false,
+         "output_directory":"./ovfbuild",
+         "vm_name":"lamp-template-{{timestamp}}",
+         "shutdown_command":"echo 'shutdown -P now' > /tmp/shutdown.sh; echo 'vagrant'|sudo -S sh '/tmp/shutdown.sh'",
+         "vboxmanage":[  
+            [  
+               "modifyvm",
+               "{{.Name}}",
+               "--memory",
+               "512"
+            ],
+            [  
+               "modifyvm",
+               "{{.Name}}",
+               "--cpus",
+               "1"
+            ]
+         ]
+      },
+      {  
+         "type":"amazon-ebs",
+         "access_key":"{{user `aws_access_key`}}",
+         "secret_key":"{{user `aws_secret_key`}}",
+         "region":"us-east-1",
+         "source_ami":"ami-d05e75b8",
+         "instance_type":"m3.medium",
+         "ssh_username":"{{user `aws_ssh_username`}}",
+         "ami_name":"ob-webhead-template-{{timestamp}}"
+      },
+      {  
+         "type":"digitalocean",
+         "api_token":"{{user `digital_ocean_token`}}",
+         "image":"ubuntu-14-04-x64",
+         "region":"nyc3",
+         "size":"512mb",
+         "snapshot_name":"ob-webhead-template-{{timestamp}}"
+      }
+   ],
+   "post-processors":[  
+      {  
+         "type":"vagrant",
+         "output":"vagrant_boxes/{{.Provider}}-ubuntu_64.box",
+         "override":{  
+            "aws":{  
+               "vagrantfile_template":"./vagrant_templates/vagrantfile-aws.template"
+            },
+            "virtualbox":{  
+               "vagrantfile_template":"./vagrant_templates/vagrantfile-virtualbox.template"
+            },
+            "digitalocean":{  
+               "vagrantfile_template":"./vagrant_templates/vagrantfile-digitalocean.template"
+            }
+         }
+      }
+   ]
+}

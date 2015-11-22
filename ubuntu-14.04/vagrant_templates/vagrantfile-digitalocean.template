@@ -1,0 +1,11 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "digital_ocean"
+
+  config.vm.provider :digital_ocean do |provider, override|
+    override.ssh.private_key_path = '~/.ssh/digital_ocean'
+    provider.token = 'ENV['DIGITALOCEAN_API_TOKEN']'
+    provider.image = 'ubuntu-14-04-x64'
+    provider.region = 'sfo1'
+    provider.size = '512mb'
+  end
+end

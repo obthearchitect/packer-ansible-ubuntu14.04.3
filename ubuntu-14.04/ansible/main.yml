@@ -1,0 +1,8 @@
+---
+- hosts: all
+  sudo: yes
+  gather_facts: yes
+
+  roles:
+    - ovidioborrero.apache2
+    - { role: ovidioborrero.newrelic, newrelic_license_key: a58da0ed3e1daf8e9f5a9573a5f295cdb332ef20 }
